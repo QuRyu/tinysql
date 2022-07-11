@@ -812,7 +812,7 @@ import (
 	JoinTable 			"join table"
 	JoinType			"join type"
 	JoinSpecification   "join specification"
-	JoinSpecificationOptional   "optional jion specification"
+	JoinSpecificationOptional   "pseudo token to solve dangling case"
 	NaturalOpt 			"natural join type"
 	LocationLabelList		"location label name list"
 	LikeEscapeOpt 			"like escape option"
@@ -3815,7 +3815,7 @@ JoinTable:
 
 		$$ = join
 	}
-| 	TableRef JoinType OuterOpt "JOIN" TableRef JoinSpecificationOptional %prec tableRefPriority
+| 	TableRef JoinType OuterOpt "JOIN" TableRef JoinSpecification %prec tableRefPriority
 	{
 		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $5.(ast.ResultSetNode), 
 				Tp: $2.(ast.JoinType), On: $6.(*ast.OnCondition)}
@@ -3860,10 +3860,10 @@ JoinSpecification:
 	}
 
 JoinSpecificationOptional:
-	{
+    {
 		$$ = nil
 	}
-|   JoinSpecification
+| 	JoinSpecification
 	{
 		$$ = $1
 	}
