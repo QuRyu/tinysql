@@ -812,6 +812,7 @@ import (
 	JoinTable 			"join table"
 	JoinType			"join type"
 	JoinSpecification   "join specification"
+	JoinSpecificationOptional   "optional jion specification"
 	NaturalOpt 			"natural join type"
 	LocationLabelList		"location label name list"
 	LikeEscapeOpt 			"like escape option"
@@ -3808,13 +3809,13 @@ IndexHintListOpt:
 JoinTable:
 	/* Use %prec to evaluate production TableRef before cross join */
 	/* TableRef CrossOpt TableRef JoinSpecificationOptional %prec tableRefPriority */
-	TableRef CrossOpt TableRef %prec tableRefPriority
+	TableRef CrossOpt TableRef JoinSpecificationOptional %prec tableRefPriority
 	{
 		join := &ast.Join{Left: $1.(ast.ResultSetNode), Right: $3.(ast.ResultSetNode), Tp: ast.CrossJoin}
 
 		$$ = join
 	}
-| 	TableRef JoinType OuterOpt "JOIN" TableRef JoinSpecification %prec tableRefPriority
+| 	TableRef JoinType OuterOpt "JOIN" TableRef JoinSpecificationOptional %prec tableRefPriority
 	{
 		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $5.(ast.ResultSetNode), 
 				Tp: $2.(ast.JoinType), On: $6.(*ast.OnCondition)}
@@ -3856,6 +3857,15 @@ JoinSpecification:
    "ON" Expression 
 	{
 		$$ = &ast.OnCondition{Expr: $2}
+	}
+
+JoinSpecificationOptional:
+	{
+		$$ = nil
+	}
+|   JoinSpecification
+	{
+		$$ = $1
 	}
 
 NaturalOpt: 
