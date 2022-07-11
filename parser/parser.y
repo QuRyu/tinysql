@@ -3807,10 +3807,16 @@ IndexHintListOpt:
 
 JoinTable:
 	/* Use %prec to evaluate production TableRef before cross join */
-	/* TableRef CrossOpt TableRef JoinSpecificationOptional %prec tableRefPriority */
 	TableRef CrossOpt TableRef %prec tableRefPriority
 	{
 		join := &ast.Join{Left: $1.(ast.ResultSetNode), Right: $3.(ast.ResultSetNode), Tp: ast.CrossJoin}
+
+		$$ = join
+	}
+|   TableRef CrossOpt TableRef JoinSpecification
+	{
+		join := &ast.Join{Left: $1.(ast.ResultSetNode), Right: $3.(ast.ResultSetNode), 
+				Tp: ast.CrossJoin, On: $4.(*ast.OnCondition)}
 
 		$$ = join
 	}
