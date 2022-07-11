@@ -811,6 +811,8 @@ import (
 	InsertValues			"Rest part of INSERT/REPLACE INTO statement"
 	JoinTable 			"join table"
 	JoinType			"join type"
+	JoinSpecification   "join specification"
+	NaturalOpt 			"natural join type"
 	LocationLabelList		"location label name list"
 	LikeEscapeOpt 			"like escape option"
 	LikeTableWithOrWithoutParen	"LIKE table_name or ( LIKE table_name )"
@@ -3805,9 +3807,21 @@ IndexHintListOpt:
 
 JoinTable:
 	/* Use %prec to evaluate production TableRef before cross join */
+	/* TableRef CrossOpt TableRef JoinSpecificationOptional %prec tableRefPriority */
 	TableRef CrossOpt TableRef %prec tableRefPriority
 	{
-		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $3.(ast.ResultSetNode), Tp: ast.CrossJoin}
+		join := &ast.Join{Left: $1.(ast.ResultSetNode), Right: $3.(ast.ResultSetNode), Tp: ast.CrossJoin}
+
+		$$ = join
+	}
+| 	TableRef JoinType OuterOpt "JOIN" TableRef JoinSpecification %prec tableRefPriority
+	{
+		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $5.(ast.ResultSetNode), 
+				Tp: $2.(ast.JoinType), On: $6.(*ast.OnCondition)}
+	}
+|   TableRef "NATURAL" NaturalOpt TableRef %prec tableRefPriority 
+	{
+		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $4.(ast.ResultSetNode), Tp: $3.(ast.JoinType)}
 	}
 	/* Project 2: your code here.
 	 * You can see details about JoinTable in https://dev.mysql.com/doc/refman/8.0/en/join.html
@@ -3837,6 +3851,22 @@ OuterOpt:
 CrossOpt:
 	"JOIN"
 |	"INNER" "JOIN"
+
+JoinSpecification:
+   "ON" Expression 
+	{
+		$$ = &ast.OnCondition{Expr: $2}
+	}
+
+NaturalOpt: 
+	CrossOpt
+	{
+		$$ = ast.CrossJoin
+	}
+|   JoinType OuterOpt "JOIN"
+	{
+		$$ = $1.(ast.JoinType)
+	}
 
 
 LimitClause:
