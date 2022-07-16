@@ -263,17 +263,41 @@ func onDropColumn(t *meta.Meta, job *model.Job) (ver int64, _ error) {
 	// TODO fill the codes of the each case.
 	switch colInfo.State {
 	case model.StatePublic:
-		// To be filled
+		colInfo.State = model.StateWriteOnly
+		job.SchemaState = model.StateWriteOnly
+
+		adjustColumnInfoInAddColumn(tblInfo, colInfo.Offset)
+
 		ver, err = updateVersionAndTableInfoWithCheck(t, job, tblInfo, originalState != colInfo.State)
 	case model.StateWriteOnly:
-		// To be filled
+		colInfo.State = model.StateDeleteOnly
+		job.SchemaState = model.StateDeleteOnly
+
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != colInfo.State)
 	case model.StateDeleteOnly:
-		// To be filled
+		colInfo.State = model.StateDeleteReorganization
+		job.SchemaState = model.StateDeleteReorganization
+
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != colInfo.State)
 	case model.StateDeleteReorganization:
-		// To be filled
+		colInfo.State = model.StateNone
+
+		adjustColumnInfoInAddColumn(tblInfo, colInfo.Offset)
+		tblInfo.Columns = tblInfo.Columns[:len(tblInfo.Columns)-1]
+
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != colInfo.State)
+		if err != nil {
+			return ver, errors.Trace(err)
+		}
+
+		if job.IsRollingback() {
+			job.FinishTableJob(model.JobStateRollbackDone, model.StateNone, ver, tblInfo)
+			job.Args[0] = colInfo.ID
+		} else {
+			job.FinishTableJob(model.JobStateDone, model.StateNone, ver, tblInfo)
+			job.Args = append(job.Args, colInfo.ID)
+		}
+
 	default:
 		err = errInvalidDDLJob.GenWithStackByArgs("table", tblInfo.State)
 	}
