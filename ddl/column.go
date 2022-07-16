@@ -196,16 +196,34 @@ func onAddColumn(d *ddlCtx, t *meta.Meta, job *model.Job) (ver int64, err error)
 	switch columnInfo.State {
 	case model.StateNone:
 		// To be filled
+		job.SchemaState = model.StateDeleteOnly
+		columnInfo.State = model.StateDeleteOnly
 		ver, err = updateVersionAndTableInfoWithCheck(t, job, tblInfo, originalState != columnInfo.State)
+		if err != nil {
+			return 0, errors.Trace(err)
+		}
 	case model.StateDeleteOnly:
 		// To be filled
+		job.SchemaState = model.StateWriteOnly
+		columnInfo.State = model.StateWriteOnly
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != columnInfo.State)
 	case model.StateWriteOnly:
-		// To be filled
+		job.SchemaState = model.StateWriteReorganization
+		columnInfo.State = model.StateWriteReorganization
+
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != columnInfo.State)
 	case model.StateWriteReorganization:
-		// To be filled
+		columnInfo.State = model.StatePublic
+		// job.SchemaState = model.StatePublic
+
+		adjustColumnInfoInAddColumn(tblInfo, offset)
+
 		ver, err = updateVersionAndTableInfo(t, job, tblInfo, originalState != columnInfo.State)
+		if err != nil {
+			return ver, errors.Trace(err)
+		}
+
+		job.FinishTableJob(model.JobStateDone, model.StatePublic, ver, tblInfo)
 	default:
 		err = ErrInvalidDDLState.GenWithStackByArgs("column", columnInfo.State)
 	}
